@@ -139,3 +139,59 @@ def test_fts_backfill_is_idempotent():
     assert count == 1  # not duplicated
 
     conn.close()
+
+
+def test_fts_backfill_populates_artifacts_and_emails():
+    """_backfill_fts() populates artifacts_fts and emails_fts for missing rows."""
+    from claude_recall.db import _backfill_fts, SCHEMA_PATH
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript(SCHEMA_PATH.read_text())
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    # Insert session + turn + artifact
+    conn.execute(
+        "INSERT INTO sessions (claude_uuid, url) VALUES ('c1', 'https://claude.ai/chat/c1')"
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO turns (session_id, turn_index, role, content, content_length) "
+        "VALUES (?, 0, 'assistant', 'hello', 5)",
+        (sid,),
+    )
+    tid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO artifacts (turn_id, title, content, content_length) "
+        "VALUES (?, 'Report', 'missing funds data', 18)",
+        (tid,),
+    )
+
+    # Insert email
+    conn.execute(
+        "INSERT INTO emails (gmail_id, subject, body_text, content_length) "
+        "VALUES ('em1', 'Meeting Notes', 'playground discussion', 21)"
+    )
+
+    # Wipe FTS tables to simulate pre-FTS state
+    conn.execute("DELETE FROM artifacts_fts")
+    conn.execute("DELETE FROM emails_fts")
+    assert conn.execute("SELECT COUNT(*) FROM artifacts_fts").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM emails_fts").fetchone()[0] == 0
+
+    # Run backfill
+    _backfill_fts(conn)
+
+    # Verify artifacts_fts repopulated
+    results = conn.execute(
+        "SELECT title FROM artifacts_fts WHERE artifacts_fts MATCH 'funds'"
+    ).fetchall()
+    assert len(results) == 1
+
+    # Verify emails_fts repopulated
+    results = conn.execute(
+        "SELECT subject FROM emails_fts WHERE emails_fts MATCH 'playground'"
+    ).fetchall()
+    assert len(results) == 1
+
+    conn.close()

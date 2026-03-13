@@ -19,21 +19,27 @@ DEFAULT_DB = Path("recall.db")
 def _backfill_fts(conn: sqlite3.Connection):
     """Backfill FTS5 indexes for any source rows missing from FTS.
 
-    Safe to run multiple times — skips rows already in FTS.
+    Safe to run multiple times -- skips rows already in FTS.
     This handles the upgrade case where data existed before FTS was added.
     """
-    conn.executescript("""
+    cursor = conn.cursor()
+
+    cursor.execute("""
         INSERT INTO turns_fts(rowid, content)
             SELECT turn_id, content FROM turns
-            WHERE turn_id NOT IN (SELECT rowid FROM turns_fts);
+            WHERE turn_id NOT IN (SELECT rowid FROM turns_fts)
+    """)
 
+    cursor.execute("""
         INSERT INTO artifacts_fts(rowid, title, content)
             SELECT artifact_id, title, content FROM artifacts
-            WHERE artifact_id NOT IN (SELECT rowid FROM artifacts_fts);
+            WHERE artifact_id NOT IN (SELECT rowid FROM artifacts_fts)
+    """)
 
+    cursor.execute("""
         INSERT INTO emails_fts(rowid, subject, body_text)
             SELECT email_id, subject, body_text FROM emails
-            WHERE email_id NOT IN (SELECT rowid FROM emails_fts);
+            WHERE email_id NOT IN (SELECT rowid FROM emails_fts)
     """)
 
 
@@ -107,7 +113,6 @@ def init_database(db_path=DEFAULT_DB, *, reset: bool = False) -> sqlite3.Connect
     conn.execute("PRAGMA foreign_keys = ON")  # re-enable after executescript
 
     _backfill_fts(conn)
-    conn.execute("PRAGMA foreign_keys = ON")  # re-enable after backfill's executescript
 
     conn.commit()
 
