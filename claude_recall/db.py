@@ -71,7 +71,14 @@ def init_database(db_path=DEFAULT_DB, *, reset: bool = False) -> sqlite3.Connect
         )
         objects = cursor.fetchall()
 
-        # FTS5 virtual tables must be dropped first (before their shadow tables)
+        # 1. Drop triggers first — they reference FTS tables which we're about
+        #    to remove. If triggers are still active when we CASCADE-delete rows
+        #    from regular tables, they'll fail trying to update a dropped FTS table.
+        triggers = [name for name, obj_type, _ in objects if obj_type == "trigger"]
+        for name in triggers:
+            conn.execute(f"DROP TRIGGER IF EXISTS [{name}]")
+
+        # 2. Drop FTS5 virtual tables — auto-removes their shadow tables too
         fts_tables = [
             name for name, obj_type, sql in objects
             if obj_type == "table" and sql and "CREATE VIRTUAL TABLE" in sql
@@ -79,12 +86,12 @@ def init_database(db_path=DEFAULT_DB, *, reset: bool = False) -> sqlite3.Connect
         for name in fts_tables:
             conn.execute(f"DROP TABLE IF EXISTS [{name}]")
 
-        # Then views
+        # 3. Drop views
         views = [name for name, obj_type, _ in objects if obj_type == "view"]
         for name in views:
             conn.execute(f"DROP VIEW IF EXISTS [{name}]")
 
-        # Then regular tables (skip FTS shadow tables, they're auto-dropped)
+        # 4. Drop regular tables (shadow tables are already gone with their FTS parents)
         regular_tables = [
             name for name, obj_type, sql in objects
             if obj_type == "table" and name not in fts_tables
@@ -92,11 +99,6 @@ def init_database(db_path=DEFAULT_DB, *, reset: bool = False) -> sqlite3.Connect
         ]
         for name in regular_tables:
             conn.execute(f"DROP TABLE IF EXISTS [{name}]")
-
-        # Triggers (may already be gone with their tables, IF EXISTS handles it)
-        triggers = [name for name, obj_type, _ in objects if obj_type == "trigger"]
-        for name in triggers:
-            conn.execute(f"DROP TRIGGER IF EXISTS [{name}]")
 
         conn.commit()
 
