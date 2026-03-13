@@ -229,3 +229,74 @@ def test_search_missing_fts_tables_raises():
     with pytest.raises(sqlite3.OperationalError):
         search_all(conn, "test")
     conn.close()
+
+
+def test_search_artifact_title_only_match(search_db):
+    """When search term matches artifact title but not content, snippet shows title."""
+    from claude_recall.search import search_all
+
+    # Insert artifact where title matches but content doesn't
+    sid = search_db.execute("SELECT session_id FROM sessions WHERE claude_uuid='uuid-1'").fetchone()[0]
+    tid = search_db.execute(
+        "SELECT turn_id FROM turns WHERE session_id = ? LIMIT 1", (sid,)
+    ).fetchone()[0]
+    search_db.execute(
+        "INSERT INTO artifacts (turn_id, title, content, content_length) "
+        "VALUES (?, 'Zephyr Methodology Overview', 'This document covers general approaches.', 39)",
+        (tid,),
+    )
+    search_db.commit()
+
+    results = search_all(search_db, "Zephyr", source_filter="artifacts")
+    assert len(results) == 1
+    # Title should appear in snippet since content doesn't contain 'Zephyr'
+    assert "Zephyr" in results[0]["snippet"]
+
+
+def test_format_results_with_data():
+    """format_results renders all three source types correctly."""
+    from claude_recall.search import format_results
+
+    results = [
+        {
+            "source_type": "conversation",
+            "snippet": "test >>snippet<< here",
+            "rank": 5.0,
+            "turn_id": 1,
+            "turn_index": 0,
+            "role": "user",
+            "session_title": "Test Session",
+            "url": "https://claude.ai/chat/test",
+            "date": "2026-01-15",
+        },
+        {
+            "source_type": "artifact",
+            "snippet": "artifact >>content<< here",
+            "rank": 3.0,
+            "artifact_id": 1,
+            "artifact_title": "My Report",
+            "artifact_type": "text",
+            "session_title": "Test Session",
+            "url": "https://claude.ai/chat/test",
+            "date": "2026-01-15",
+        },
+        {
+            "source_type": "email",
+            "snippet": "email >>body<< text",
+            "rank": 2.0,
+            "email_id": 1,
+            "subject": "Meeting Notes",
+            "sender": "test@example.com",
+            "date": "2026-01-10",
+        },
+    ]
+
+    output = format_results(results)
+    assert "3 matches" in output
+    assert "Conversation Turn" in output
+    assert "Artifact" in output
+    assert "Email" in output
+    assert "Test Session" in output
+    assert "My Report" in output
+    assert "Meeting Notes" in output
+    assert "END RESULTS" in output
