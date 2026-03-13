@@ -328,9 +328,9 @@ def save_to_database(conn: sqlite3.Connection, data: ConversationData):
         (data.claude_uuid,)
     ).fetchone()[0]
 
-    # Explicitly delete artifacts before turns — CASCADE deletes don't fire
-    # FTS triggers on all SQLite versions, so we delete artifacts directly
-    # to keep FTS in sync
+    # Explicitly delete artifacts before turns -- CASCADE deletes may not
+    # fire FTS triggers on older SQLite versions (pre-3.50), so we delete
+    # artifacts directly as a defensive compatibility measure.
     cursor.execute("""
         DELETE FROM artifacts WHERE turn_id IN (
             SELECT turn_id FROM turns WHERE session_id = ?

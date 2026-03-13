@@ -142,17 +142,15 @@ def test_fts_sync_on_explicit_artifact_delete(test_db):
     assert len(results) == 0
 
 
-def test_cascade_does_not_sync_artifact_fts(test_db):
-    """CASCADE delete of artifacts cleans up artifacts_fts in SQLite >= 3.x.
+def test_cascade_fts_sync_varies_by_version(test_db):
+    """CASCADE delete FTS trigger behavior varies by SQLite version.
 
-    NOTE: Older SQLite versions (pre-3.x) did NOT fire triggers on CASCADE
-    deletes, leaving stale FTS entries. SQLite 3.50.4+ correctly fires triggers
-    on child rows deleted via CASCADE. We verify the current behavior here.
+    SQLite 3.50+ correctly fires triggers on CASCADE-deleted child rows.
+    Older versions do NOT fire triggers, leaving stale FTS entries.
 
     The extractor should still explicitly delete artifacts before turns as a
     defensive pattern for compatibility with older SQLite installations.
     """
-    import sqlite3 as _sqlite3
     sid = _insert_session(test_db)
     tid = _insert_turn(test_db, sid)
 
@@ -174,7 +172,7 @@ def test_cascade_does_not_sync_artifact_fts(test_db):
     fts_rows = test_db.execute(
         "SELECT * FROM artifacts_fts WHERE artifacts_fts MATCH 'cascade'"
     ).fetchall()
-    sqlite_ver = tuple(int(x) for x in _sqlite3.sqlite_version.split("."))
+    sqlite_ver = tuple(int(x) for x in sqlite3.sqlite_version.split("."))
     if sqlite_ver >= (3, 50, 0):
         assert len(fts_rows) == 0  # trigger fired correctly
     else:
