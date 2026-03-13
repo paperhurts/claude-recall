@@ -168,9 +168,11 @@ def _search_artifacts(conn, query, after, before, context_tokens=30):
     rows = cursor.fetchall()
     results = []
     for row in rows:
-        # If content snippet is empty/ellipsis-only, use title + content preview
+        # If content snippet has no highlighted match ('>>' marker absent), the
+        # match was in the title only — fall back to showing the title snippet
+        # plus a content preview so the user still gets context.
         snippet = row["content_snippet"]
-        if not snippet or snippet.strip() == "...":
+        if not snippet or snippet.strip() == "..." or ">>" not in snippet:
             snippet = f"Title: {row['title_snippet']}\n  {row['content_preview'] or ''}"
 
         results.append({
