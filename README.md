@@ -47,10 +47,23 @@ playwright install chromium
 
 You need Chrome running with the DevTools Protocol enabled. This lets claude-recall connect to your existing browser session (with your claude.ai login) without handling credentials.
 
-**Windows:**
+**Windows (PowerShell):**
+
+Chrome on Windows will silently join an existing instance that doesn't have debugging enabled. You need to kill all Chrome processes first and use a separate user data directory:
+
 ```powershell
-& "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+# Kill any existing Chrome instances
+taskkill /F /IM chrome.exe
+Start-Sleep -Seconds 3
+
+# Launch with debugging enabled and a separate profile
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\temp\chrome-debug"
+
+# Verify the debug port is listening
+netstat -an | findstr 9222
 ```
+
+> **Note:** On some Windows systems, `localhost` resolves to IPv6 (`::1`) which Playwright can't connect to. If you get connection errors, use `--cdp http://127.0.0.1:9222` when running claude-recall.
 
 **Mac:**
 ```bash
@@ -105,7 +118,29 @@ claude-recall-backfill
 
 This revisits each conversation, clicks to expand each thinking block in the DOM, and reads the full content.
 
-### Options
+### Search your conversations
+
+Once you've extracted conversations, search across everything with full-text search:
+
+```bash
+claude-recall-search "playground funds"
+claude-recall-search "error handling" --source conversations
+claude-recall-search "budget" --after 2026-01-01 --before 2026-02-01
+claude-recall-search "API design" --limit 10
+```
+
+| Flag | Description |
+|------|-------------|
+| `--source TYPE` | Filter: `conversations`, `artifacts`, `emails`, or `all` (default) |
+| `--after DATE` | Only results after this date (YYYY-MM-DD) |
+| `--before DATE` | Only results before this date (YYYY-MM-DD) |
+| `--limit N` | Max results (default: 20) |
+| `--context N` | Snippet context in words (default: 30) |
+| `--db PATH` | Database path (default: `recall.db`) |
+
+Results are ranked by relevance (BM25) with highlighted snippet excerpts and source citations.
+
+### Extraction options
 
 | Flag | Description |
 |------|-------------|
@@ -118,11 +153,13 @@ This revisits each conversation, clicks to expand each thinking block in the DOM
 
 ## Database schema
 
-Three tables:
+Five tables (plus three FTS5 virtual tables for search):
 
 - **sessions** — One row per conversation (UUID, title, model, turn counts)
 - **turns** — Each message (role, content, code/tool/artifact/thinking flags)
 - **thinking_blocks** — Extended thinking content linked to assistant turns
+- **artifacts** — Code, documents, and other artifacts from assistant turns
+- **emails** — Imported email content (for cross-source search)
 
 Query your data:
 
