@@ -118,6 +118,78 @@ CREATE INDEX IF NOT EXISTS idx_emails_thread ON emails(thread_id);
 
 
 -- ============================================================
+-- FTS5: Full-text search indexes (standalone mode)
+-- ============================================================
+CREATE VIRTUAL TABLE IF NOT EXISTS turns_fts USING fts5(
+    content,
+    tokenize='porter unicode61'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS artifacts_fts USING fts5(
+    title,
+    content,
+    tokenize='porter unicode61'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS emails_fts USING fts5(
+    subject,
+    body_text,
+    tokenize='porter unicode61'
+);
+
+
+-- ============================================================
+-- TRIGGERS: Keep FTS indexes in sync with source tables
+-- ============================================================
+
+-- Turns triggers
+CREATE TRIGGER IF NOT EXISTS turns_fts_insert AFTER INSERT ON turns BEGIN
+    INSERT INTO turns_fts(rowid, content) VALUES (new.turn_id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS turns_fts_update AFTER UPDATE OF content ON turns BEGIN
+    DELETE FROM turns_fts WHERE rowid = old.turn_id;
+    INSERT INTO turns_fts(rowid, content) VALUES (new.turn_id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS turns_fts_delete AFTER DELETE ON turns BEGIN
+    DELETE FROM turns_fts WHERE rowid = old.turn_id;
+END;
+
+-- Artifacts triggers
+CREATE TRIGGER IF NOT EXISTS artifacts_fts_insert AFTER INSERT ON artifacts BEGIN
+    INSERT INTO artifacts_fts(rowid, title, content)
+    VALUES (new.artifact_id, new.title, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS artifacts_fts_update AFTER UPDATE OF title, content ON artifacts BEGIN
+    DELETE FROM artifacts_fts WHERE rowid = old.artifact_id;
+    INSERT INTO artifacts_fts(rowid, title, content)
+    VALUES (new.artifact_id, new.title, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS artifacts_fts_delete AFTER DELETE ON artifacts BEGIN
+    DELETE FROM artifacts_fts WHERE rowid = old.artifact_id;
+END;
+
+-- Emails triggers
+CREATE TRIGGER IF NOT EXISTS emails_fts_insert AFTER INSERT ON emails BEGIN
+    INSERT INTO emails_fts(rowid, subject, body_text)
+    VALUES (new.email_id, new.subject, new.body_text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS emails_fts_update AFTER UPDATE OF subject, body_text ON emails BEGIN
+    DELETE FROM emails_fts WHERE rowid = old.email_id;
+    INSERT INTO emails_fts(rowid, subject, body_text)
+    VALUES (new.email_id, new.subject, new.body_text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS emails_fts_delete AFTER DELETE ON emails BEGIN
+    DELETE FROM emails_fts WHERE rowid = old.email_id;
+END;
+
+
+-- ============================================================
 -- VIEW: Session overview
 -- ============================================================
 CREATE VIEW IF NOT EXISTS v_session_overview AS
