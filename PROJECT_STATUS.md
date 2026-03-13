@@ -3,38 +3,34 @@
 ## Last Updated: 2026-03-13
 
 ## Current State
-claude-recall v0.1.1 — conversation extraction with full-text search. Session 1 implementation complete on `feat/session1-fts5-search` branch. 33 automated tests passing. Awaiting manual verification (re-pull + search test) before merge.
+claude-recall v0.1.1 on branch `feat/session1-fts5-search` — conversation extraction with full-text search working. 33 automated tests passing. Manual verification done against real data (~137 conversations extracted, search confirmed working).
 
-## What Changed This Session
+## What Changed This Session (Session 1)
 - Created implementation plan from approved spec
-- Implemented Session 1: FTS5 schema, search CLI, pytest infrastructure
-  - Added artifacts + emails tables to schema
-  - Added FTS5 virtual tables (turns_fts, artifacts_fts, emails_fts) with sync triggers
-  - Updated db.py: SQLite >= 3.29 version check, FTS-aware reset, FTS backfill, :memory: support
-  - Created search.py: `claude-recall-search` CLI with BM25 ranking, source/date filters, snippet highlighting
-  - Updated extractor.py: always call init_database() (upgrade path), explicit artifact delete for FTS safety
-  - 33 tests across test_schema.py, test_db.py, test_search.py
-- Found: SQLite 3.50.4 fires triggers on CASCADE deletes (newer behavior than spec assumed)
-- Found: Plan's reset ordering had a bug (triggers must be dropped before FTS tables, not after)
+- **Schema**: Added artifacts + emails tables, FTS5 virtual tables (turns_fts, artifacts_fts, emails_fts), 9 sync triggers
+- **db.py**: SQLite >= 3.29 version check, FTS-aware reset (triggers→FTS→views→tables), `_backfill_fts()`, `:memory:` support
+- **search.py** (NEW): `claude-recall-search` CLI with BM25 ranking, source/date filters, `--context` flag, snippet highlighting, artifact title fallback, FTS5 syntax error handling
+- **extractor.py**: Always calls `init_database()` (upgrade path for existing DBs), explicit artifact delete for FTS safety, wait up to 30s for SPA message rendering
+- **33 tests** across test_schema.py, test_db.py, test_search.py
+- Found: SQLite 3.50.4 fires triggers on CASCADE deletes (newer than spec assumed)
+- Found: Plan's reset ordering had a bug (triggers must drop before FTS tables)
+- Found: Large conversations need SPA wait — fixed with polling loop
 
-## Pending: Manual Verification (Task 12)
-Needs Chrome with `--remote-debugging-port=9222` and claude.ai login:
-1. Reset DB: `python -m claude_recall.db --reset`
-2. Re-pull: `claude-recall --limit 5` (smoke test), then `claude-recall` (full)
-3. Verify FTS: `python -c "import sqlite3; c=sqlite3.connect('recall.db'); print('FTS rows:', c.execute('SELECT COUNT(*) FROM turns_fts').fetchone()[0])"`
-4. Test search: `claude-recall-search "Frazer" --limit 10`
-5. If all good: merge branch, close issue #1
+## Branch Status
+- Branch `feat/session1-fts5-search` has 13 commits ahead of main
+- NOT YET MERGED — user should decide merge strategy next session
+- All tests pass, search verified against real data
 
-## Delivery Plan (from spec)
-- **Session 1**: FTS5 schema + search CLI + pytest suite + re-pull conversations ← DONE (pending verification)
-- **Session 2**: Artifact extraction + re-pull with artifacts
-- **Session 3**: Gmail OAuth ingestion (readonly) + security review
+## Pending Work
+- **Merge decision**: Merge feat branch to main (or create PR)
+- **Re-extract failed conversations**: ~8 conversations still failed extraction (some may have Frazer content). Retry with `--url <uuid>` now that wait fix is in place
+- **Session 2**: Artifact extraction (spec already approved)
+- **Session 3**: Gmail OAuth ingestion (spec already approved)
 
 ## Key Files
 - `docs/superpowers/plans/2026-03-13-session1-fts5-search.md` — implementation plan
 - `docs/superpowers/specs/2026-03-13-siege-evidence-database-design.md` — approved design spec
-- `claude_recall/search.py` — NEW: search CLI
-- `claude_recall/schema.sql` — UPDATED: FTS5 tables, triggers, artifacts, emails
-- `claude_recall/db.py` — UPDATED: version check, reset, backfill
+- `claude_recall/search.py` — search CLI
+- `claude_recall/schema.sql` — FTS5 tables, triggers, artifacts, emails
+- `claude_recall/db.py` — version check, reset, backfill
 - `.siege/SIEGE_Master_Playbook_v0.1.md` — SIEGE framework
-- `.siege/FRAZER/frazer/` — existing Frazer school research (9 docs)
