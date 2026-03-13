@@ -38,6 +38,7 @@ Issues = "https://github.com/paperhurts/claude-recall/issues"
 [project.scripts]
 claude-recall = "claude_recall.extractor:main"
 claude-recall-backfill = "claude_recall.backfill_thinking:main"
+claude-recall-search = "claude_recall.search:main"
 
 [tool.setuptools.packages.find]
 include = ["claude_recall*"]
