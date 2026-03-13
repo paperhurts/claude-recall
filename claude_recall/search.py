@@ -46,6 +46,14 @@ def search_all(
     Returns:
         List of result dicts sorted by BM25 rank (best first).
     """
+    valid_sources = ("all", "conversations", "artifacts", "emails")
+    if source_filter not in valid_sources:
+        raise ValueError(
+            f"source_filter must be one of {valid_sources}, got {source_filter!r}"
+        )
+
+    context_tokens = max(1, min(int(context_tokens), 500))
+
     results = []
 
     try:
@@ -298,7 +306,16 @@ def main():
         sys.exit(1)
 
     # Warn if FTS tables are empty
-    fts_count = conn.execute("SELECT COUNT(*) FROM turns_fts").fetchone()[0]
+    try:
+        fts_count = conn.execute("SELECT COUNT(*) FROM turns_fts").fetchone()[0]
+    except sqlite3.OperationalError:
+        print(
+            "Error: FTS5 tables not found. Your database needs upgrading.\n"
+            "Run: python -m claude_recall.db",
+            file=sys.stderr,
+        )
+        conn.close()
+        sys.exit(1)
     if fts_count == 0:
         print(
             "Warning: FTS indexes are empty. Run 'claude-recall' to extract "
