@@ -75,6 +75,49 @@ CREATE INDEX IF NOT EXISTS idx_thinking_turn ON thinking_blocks(turn_id);
 
 
 -- ============================================================
+-- ARTIFACTS: Code, text, and other artifacts from assistant turns
+-- ============================================================
+CREATE TABLE IF NOT EXISTS artifacts (
+    artifact_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    turn_id         INTEGER NOT NULL REFERENCES turns(turn_id) ON DELETE CASCADE,
+    artifact_index  INTEGER NOT NULL DEFAULT 0,
+    title           TEXT,
+    artifact_type   TEXT,
+    language        TEXT,
+    content         TEXT NOT NULL,
+    content_length  INTEGER NOT NULL,
+    extracted_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(turn_id, artifact_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_artifacts_turn ON artifacts(turn_id);
+
+
+-- ============================================================
+-- EMAILS: Gmail messages ingested by label
+-- ============================================================
+CREATE TABLE IF NOT EXISTS emails (
+    email_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    gmail_id        TEXT UNIQUE NOT NULL,
+    thread_id       TEXT,
+    subject         TEXT,
+    sender          TEXT,
+    recipients      TEXT,
+    date            TEXT,
+    body_text       TEXT,
+    body_html       TEXT,
+    labels          TEXT,
+    has_attachments BOOLEAN DEFAULT 0,
+    content_length  INTEGER NOT NULL,
+    imported_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(date);
+CREATE INDEX IF NOT EXISTS idx_emails_sender ON emails(sender);
+CREATE INDEX IF NOT EXISTS idx_emails_thread ON emails(thread_id);
+
+
+-- ============================================================
 -- VIEW: Session overview
 -- ============================================================
 CREATE VIEW IF NOT EXISTS v_session_overview AS
