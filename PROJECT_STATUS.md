@@ -3,23 +3,28 @@
 ## Last Updated: 2026-03-13
 
 ## Current State
-claude-recall v0.1.1 on branch `feat/session1-fts5-search` — conversation extraction with full-text search working. 33 automated tests passing. Manual verification done against real data (~137 conversations extracted, search confirmed working).
+claude-recall v0.1.1 on branch `feat/session1-fts5-search` — conversation extraction with full-text search working. 38 automated tests passing. Manual verification done against real data (~137 conversations extracted, search confirmed working).
 
-## What Changed This Session (Session 1)
+## What Changed This Session (Session 2 — PR Review Fixes)
+- Ran comprehensive 6-agent parallel PR review (code, comments, tests, errors, types, simplify)
+- **CRITICAL fix**: Empty `catch(e) {}` in browser JS now logs selector errors via `console.warn`
+- **db.py**: Replaced `executescript` with individual `execute()` calls in `_backfill_fts` for atomicity; removed redundant PRAGMA re-enable
+- **search.py**: Switched from positional `row[0]..row[9]` to `sqlite3.Row` named access; added `source_filter` validation; FTS-missing tables now show upgrade instructions; `context_tokens` bounded [1,500]; `Counter` for source counting; improved artifact title-only match fallback
+- **extractor.py**: Fixed misleading CASCADE comment (now says "may not fire on older versions")
+- **tests**: 33 → 38 tests. Added: artifact/email backfill, title-only artifact match, format_results with data, invalid source_filter, missing FTS tables. Renamed misleading test.
+- **CLAUDE.md**: Added search CLI docs, updated architecture section
+
+## Previous Session (Session 1)
 - Created implementation plan from approved spec
-- **Schema**: Added artifacts + emails tables, FTS5 virtual tables (turns_fts, artifacts_fts, emails_fts), 9 sync triggers
-- **db.py**: SQLite >= 3.29 version check, FTS-aware reset (triggers→FTS→views→tables), `_backfill_fts()`, `:memory:` support
-- **search.py** (NEW): `claude-recall-search` CLI with BM25 ranking, source/date filters, `--context` flag, snippet highlighting, artifact title fallback, FTS5 syntax error handling
-- **extractor.py**: Always calls `init_database()` (upgrade path for existing DBs), explicit artifact delete for FTS safety, wait up to 30s for SPA message rendering
-- **33 tests** across test_schema.py, test_db.py, test_search.py
-- Found: SQLite 3.50.4 fires triggers on CASCADE deletes (newer than spec assumed)
-- Found: Plan's reset ordering had a bug (triggers must drop before FTS tables)
-- Found: Large conversations need SPA wait — fixed with polling loop
+- Schema: Added artifacts + emails tables, FTS5 virtual tables, 9 sync triggers
+- search.py (NEW): `claude-recall-search` CLI with BM25 ranking, source/date filters, snippet highlighting
+- extractor.py: upgrade path, explicit artifact delete, SPA wait loop
+- 33 tests across test_schema.py, test_db.py, test_search.py
 
 ## Branch Status
-- Branch `feat/session1-fts5-search` has 13 commits ahead of main
-- NOT YET MERGED — user should decide merge strategy next session
-- All tests pass, search verified against real data
+- Branch `feat/session1-fts5-search` has ~20 commits ahead of main
+- NOT YET MERGED — user should decide merge strategy
+- All 38 tests pass, search verified against real data
 
 ## Pending Work
 - **Merge decision**: Merge feat branch to main (or create PR)
