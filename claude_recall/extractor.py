@@ -137,7 +137,12 @@ def extract_conversation(page: Page, conv: dict) -> ConversationData:
     log.info(f"Extracting: {conv['title'][:60]}...")
 
     page.goto(url, wait_until="networkidle", timeout=PAGE_LOAD_TIMEOUT)
-    time.sleep(2)
+
+    # Wait for conversation messages to actually render (SPA loads async)
+    for _ in range(30):
+        if page.query_selector('[data-testid="user-message"]'):
+            break
+        time.sleep(1)
 
     _scroll_to_load_all(page)
 
