@@ -210,3 +210,22 @@ def test_search_invalid_fts_syntax_raises_value_error(search_db):
 
     with pytest.raises(ValueError, match="Invalid FTS5 query syntax"):
         search_all(search_db, "AND AND")
+
+
+def test_search_invalid_source_filter_raises(search_db):
+    """Invalid source_filter raises ValueError, not silent empty results."""
+    from claude_recall.search import search_all
+
+    with pytest.raises(ValueError, match="source_filter"):
+        search_all(search_db, "playground", source_filter="conversation")
+
+
+def test_search_missing_fts_tables_raises():
+    """Searching a DB without FTS tables raises OperationalError (not ValueError)."""
+    from claude_recall.search import search_all
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE sessions (session_id INTEGER PRIMARY KEY)")
+    with pytest.raises(sqlite3.OperationalError):
+        search_all(conn, "test")
+    conn.close()
