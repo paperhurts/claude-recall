@@ -202,3 +202,11 @@ def test_format_no_results():
 
     output = format_results([])
     assert "NO RESULTS" in output
+
+
+def test_search_invalid_fts_syntax_raises_value_error(search_db):
+    """Invalid FTS5 query syntax raises ValueError, not OperationalError."""
+    from claude_recall.search import search_all
+
+    with pytest.raises(ValueError, match="Invalid FTS5 query syntax"):
+        search_all(search_db, "AND AND")
