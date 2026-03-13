@@ -137,7 +137,12 @@ def extract_conversation(page: Page, conv: dict) -> ConversationData:
     log.info(f"Extracting: {conv['title'][:60]}...")
 
     page.goto(url, wait_until="networkidle", timeout=PAGE_LOAD_TIMEOUT)
-    time.sleep(2)
+
+    # Wait for conversation messages to actually render (SPA loads async)
+    for _ in range(30):
+        if page.query_selector('[data-testid="user-message"]'):
+            break
+        time.sleep(1)
 
     _scroll_to_load_all(page)
 
@@ -253,7 +258,9 @@ def _extract_turns(page: Page) -> list[Turn]:
                                 thinkingBlocks.push(content.trim());
                             }
                         });
-                    } catch(e) {}
+                    } catch(e) {
+                        console.warn('[claude-recall] Thinking selector "' + sel + '" failed: ' + e.message);
+                    }
                 });
             }
 
@@ -320,6 +327,15 @@ def save_to_database(conn: sqlite3.Connection, data: ConversationData):
         "SELECT session_id FROM sessions WHERE claude_uuid = ?",
         (data.claude_uuid,)
     ).fetchone()[0]
+
+    # Explicitly delete artifacts before turns -- CASCADE deletes may not
+    # fire FTS triggers on older SQLite versions (pre-3.50), so we delete
+    # artifacts directly as a defensive compatibility measure.
+    cursor.execute("""
+        DELETE FROM artifacts WHERE turn_id IN (
+            SELECT turn_id FROM turns WHERE session_id = ?
+        )
+    """, (session_id,))
 
     # Clear existing turns for this session (in case of re-extraction)
     cursor.execute("DELETE FROM turns WHERE session_id = ?", (session_id,))
@@ -388,14 +404,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Initialize database if it doesn't exist
+    # Initialize or upgrade database (init_database handles both new and existing)
     if not args.dry_run:
-        if not args.db.exists():
-            log.info(f"Creating database at {args.db}")
-            conn = init_database(args.db)
-        else:
-            conn = sqlite3.connect(str(args.db))
-            conn.execute("PRAGMA foreign_keys = ON")
+        conn = init_database(args.db)
 
     with sync_playwright() as p:
         log.info(f"Connecting to Chrome via CDP at {args.cdp}...")
