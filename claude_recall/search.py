@@ -99,18 +99,21 @@ def _search_turns(conn, query, after, before, context_tokens=30):
 
     sql += " ORDER BY rank"
 
-    rows = conn.execute(sql, params).fetchall()
+    cursor = conn.cursor()
+    cursor.row_factory = sqlite3.Row
+    cursor.execute(sql, params)
+    rows = cursor.fetchall()
     return [
         {
             "source_type": "conversation",
-            "snippet": row[0],
-            "rank": row[1],
-            "turn_id": row[2],
-            "turn_index": row[3],
-            "role": row[4],
-            "session_title": row[5],
-            "url": row[6],
-            "date": row[7] or "",
+            "snippet": row["snippet"],
+            "rank": row["relevance"],
+            "turn_id": row["turn_id"],
+            "turn_index": row["turn_index"],
+            "role": row["role"],
+            "session_title": row["session_title"],
+            "url": row["url"],
+            "date": row["created_at"] or "",
         }
         for row in rows
     ]
@@ -151,26 +154,27 @@ def _search_artifacts(conn, query, after, before, context_tokens=30):
 
     sql += " ORDER BY rank"
 
-    rows = conn.execute(sql, params).fetchall()
+    cursor = conn.cursor()
+    cursor.row_factory = sqlite3.Row
+    cursor.execute(sql, params)
+    rows = cursor.fetchall()
     results = []
     for row in rows:
-        content_snippet = row[0]
-        title_snippet = row[1]
         # If content snippet is empty/ellipsis-only, use title + content preview
-        snippet = content_snippet
+        snippet = row["content_snippet"]
         if not snippet or snippet.strip() == "...":
-            snippet = f"Title: {title_snippet}\n  {row[9] or ''}"
+            snippet = f"Title: {row['title_snippet']}\n  {row['content_preview'] or ''}"
 
         results.append({
             "source_type": "artifact",
             "snippet": snippet,
-            "rank": row[2],
-            "artifact_id": row[3],
-            "artifact_title": row[4],
-            "artifact_type": row[5],
-            "session_title": row[6],
-            "url": row[7],
-            "date": row[8] or "",
+            "rank": row["relevance"],
+            "artifact_id": row["artifact_id"],
+            "artifact_title": row["artifact_title"],
+            "artifact_type": row["artifact_type"],
+            "session_title": row["session_title"],
+            "url": row["url"],
+            "date": row["created_at"] or "",
         })
     return results
 
@@ -200,16 +204,19 @@ def _search_emails(conn, query, after, before, context_tokens=30):
 
     sql += " ORDER BY rank"
 
-    rows = conn.execute(sql, params).fetchall()
+    cursor = conn.cursor()
+    cursor.row_factory = sqlite3.Row
+    cursor.execute(sql, params)
+    rows = cursor.fetchall()
     return [
         {
             "source_type": "email",
-            "snippet": row[0],
-            "rank": row[1],
-            "email_id": row[2],
-            "subject": row[3],
-            "sender": row[4],
-            "date": row[5] or "",
+            "snippet": row["snippet"],
+            "rank": row["relevance"],
+            "email_id": row["email_id"],
+            "subject": row["subject"],
+            "sender": row["sender"],
+            "date": row["date"] or "",
         }
         for row in rows
     ]
