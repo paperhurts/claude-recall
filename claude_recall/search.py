@@ -315,3 +315,7 @@ def main():
 
     print(format_results(results))
     conn.close()
+
+
+if __name__ == "__main__":
+    main()
