@@ -16,6 +16,7 @@ Usage:
 import argparse
 import sqlite3
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
@@ -237,9 +238,7 @@ def format_results(results: list[dict]) -> str:
     if not results:
         return "=== NO RESULTS ==="
 
-    source_counts = {}
-    for r in results:
-        source_counts[r["source_type"]] = source_counts.get(r["source_type"], 0) + 1
+    source_counts = Counter(r["source_type"] for r in results)
 
     source_summary = ", ".join(
         f"{count} {stype}{'s' if count != 1 else ''}"
