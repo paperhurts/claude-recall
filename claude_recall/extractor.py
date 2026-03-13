@@ -258,7 +258,9 @@ def _extract_turns(page: Page) -> list[Turn]:
                                 thinkingBlocks.push(content.trim());
                             }
                         });
-                    } catch(e) {}
+                    } catch(e) {
+                        console.warn('[claude-recall] Thinking selector "' + sel + '" failed: ' + e.message);
+                    }
                 });
             }
 
