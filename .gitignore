@@ -23,6 +23,13 @@ env/
 *.swp
 *.swo
 
+# Claude Code / Superpowers (may contain sensitive conversation data)
+.claude/
+docs/superpowers/
+
+# SIEGE playbook (case-specific, not public)
+.siege/
+
 # OS
 .DS_Store
 Thumbs.db
