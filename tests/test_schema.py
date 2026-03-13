@@ -209,3 +209,34 @@ def test_reextraction_no_duplicate_fts(test_db):
         "SELECT content FROM turns_fts WHERE turns_fts MATCH 'extraction'"
     ).fetchall()
     assert len(results) == 1  # only one match, not duplicated
+
+
+def test_reextraction_explicit_artifact_delete_cleans_fts(test_db):
+    """Simulating proper re-extraction: explicit artifact delete + turn delete = clean FTS."""
+    sid = _insert_session(test_db)
+    tid = _insert_turn(test_db, sid, content="original content")
+
+    test_db.execute(
+        "INSERT INTO artifacts (turn_id, title, content, content_length) "
+        "VALUES (?, 'Report', 'artifact content', 16)",
+        (tid,),
+    )
+
+    # Proper re-extraction: explicitly delete artifacts first, then turns
+    test_db.execute(
+        "DELETE FROM artifacts WHERE turn_id IN "
+        "(SELECT turn_id FROM turns WHERE session_id = ?)",
+        (sid,),
+    )
+    test_db.execute("DELETE FROM turns WHERE session_id = ?", (sid,))
+
+    # Both FTS tables should be clean
+    turn_fts = test_db.execute(
+        "SELECT * FROM turns_fts WHERE turns_fts MATCH 'original'"
+    ).fetchall()
+    assert len(turn_fts) == 0
+
+    artifact_fts = test_db.execute(
+        "SELECT * FROM artifacts_fts WHERE artifacts_fts MATCH 'artifact'"
+    ).fetchall()
+    assert len(artifact_fts) == 0

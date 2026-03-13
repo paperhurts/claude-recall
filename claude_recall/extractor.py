@@ -321,6 +321,15 @@ def save_to_database(conn: sqlite3.Connection, data: ConversationData):
         (data.claude_uuid,)
     ).fetchone()[0]
 
+    # Explicitly delete artifacts before turns — CASCADE deletes don't fire
+    # FTS triggers on all SQLite versions, so we delete artifacts directly
+    # to keep FTS in sync
+    cursor.execute("""
+        DELETE FROM artifacts WHERE turn_id IN (
+            SELECT turn_id FROM turns WHERE session_id = ?
+        )
+    """, (session_id,))
+
     # Clear existing turns for this session (in case of re-extraction)
     cursor.execute("DELETE FROM turns WHERE session_id = ?", (session_id,))
 
@@ -388,14 +397,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Initialize database if it doesn't exist
+    # Initialize or upgrade database (init_database handles both new and existing)
     if not args.dry_run:
-        if not args.db.exists():
-            log.info(f"Creating database at {args.db}")
-            conn = init_database(args.db)
-        else:
-            conn = sqlite3.connect(str(args.db))
-            conn.execute("PRAGMA foreign_keys = ON")
+        conn = init_database(args.db)
 
     with sync_playwright() as p:
         log.info(f"Connecting to Chrome via CDP at {args.cdp}...")
