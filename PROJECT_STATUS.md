@@ -26,11 +26,27 @@ claude-recall v0.1.1 on branch `feat/session1-fts5-search` — conversation extr
 - NOT YET MERGED — user should decide merge strategy
 - All 38 tests pass, search verified against real data
 
-## Pending Work
-- **Merge decision**: Merge feat branch to main (or create PR)
-- **Re-extract failed conversations**: ~8 conversations still failed extraction (some may have Frazer content). Retry with `--url <uuid>` now that wait fix is in place
-- **Session 2**: Artifact extraction (spec already approved)
-- **Session 3**: Gmail OAuth ingestion (spec already approved)
+## Next Session — Start Here
+
+**Priority 1: Fix thinking block backfill (issue #4)**
+- `backfill_thinking.py` expands blocks but reads zero content — DOM selectors for reading expanded text are broken
+- The expand/click selectors still work; it's the content-reading selector (`div.row-start-1.col-start-1`) that's stale
+- Steps: open Chrome with `--remote-debugging-port=9222`, navigate to a conversation with thinking, expand a block, inspect the DOM, find the new selector, update `backfill_thinking.py`
+- Also investigate #2: does the first-pass extractor now get full thinking content without needing backfill? (claude.ai may have changed)
+- Test with: `python -m claude_recall.backfill_thinking --session-id <id>`
+
+**Priority 2: Re-extract failed conversations** — ~8 still failed. Retry with `--url <uuid>`
+
+**Priority 3: Artifact extraction** (Session 2 spec already approved)
+
+**Priority 4: Gmail OAuth ingestion** (Session 3 spec already approved)
+
+**Note:** Python scripts dir not on PATH. Use `python -m claude_recall.search` etc. instead of CLI names, or add `C:\Users\paper\AppData\Roaming\Python\Python314\Scripts` to PATH.
+
+## Open Issues
+- #2 — Investigate: do thinking blocks still need two-pass extraction?
+- #3 — Add --backfill flag for single-command extraction
+- #4 — Bug: backfill_thinking gets zero content (DOM selectors broken)
 
 ## Key Files
 - `docs/superpowers/plans/2026-03-13-session1-fts5-search.md` — implementation plan
